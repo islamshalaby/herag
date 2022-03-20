@@ -99,14 +99,38 @@ use Illuminate\Http\Request;
 
     // sub category level 1
     Route::get('/sub_categories/level1/{category_id}/{lang}/{v}' , 'CategoryController@getAdSubCategories')->middleware('checkguest');
+    // sub category level 1 for ios
+    Route::get('/sub_categories_ios/level1/{category_id}/{lang}/{v}' , 'CategoryController@getAdSubCategoriesIos')->middleware('checkguest');
+    // sub category level 1 for ios
+    Route::get('/sub_categories_android/level1/{category_id}/{lang}/{v}' , 'CategoryController@getAdSubCategoriesAndroid')->middleware('checkguest');
+    
+    
     // sub category level 2
     Route::get('/sub_categories/level2/{sub_category_id}/{lang}/{v}' , 'CategoryController@get_sub_categories_level2')->middleware('checkguest');
+    // sub category level 2 for ios
+    Route::get('/sub_categories_ios/level2/{sub_category_id}/{lang}/{v}' , 'CategoryController@get_sub_categories_level2_ios')->middleware('checkguest');
+    // sub category level 2 for ios
+    Route::get('/sub_categories_android/level2/{sub_category_id}/{lang}/{v}' , 'CategoryController@get_sub_categories_level2_android')->middleware('checkguest');
+    
     // sub category level 3
     Route::get('/sub_categories/level3/{sub_category_id}/{lang}/{v}' , 'CategoryController@get_sub_categories_level3')->middleware('checkguest');
+    // sub category level 3 for ios
+    Route::get('/sub_categories_ios/level3/{sub_category_id}/{lang}/{v}' , 'CategoryController@get_sub_categories_level3_ios')->middleware('checkguest');
+    // sub category level 3 for android
+    Route::get('/sub_categories_android/level3/{sub_category_id}/{lang}/{v}' , 'CategoryController@get_sub_categories_level3_android')->middleware('checkguest');
     // sub category level 4
     Route::get('/sub_categories/level4/{sub_category_id}/{lang}/{v}' , 'CategoryController@get_sub_categories_level4')->middleware('checkguest');
+    // sub category level 4 for ios
+    Route::get('/sub_categories_ios/level4/{sub_category_id}/{lang}/{v}' , 'CategoryController@get_sub_categories_level4_ios')->middleware('checkguest');
+    // sub category level 4 for android
+    Route::get('/sub_categories_android/level4/{sub_category_id}/{lang}/{v}' , 'CategoryController@get_sub_categories_level4_android')->middleware('checkguest');
     // sub category level 5
     Route::get('/sub_categories/level5/{sub_category_id}/{lang}/{v}' , 'CategoryController@get_sub_categories_level5')->middleware('checkguest');
+    // sub category level 5 for ios
+    Route::get('/sub_categories_ios/level5/{sub_category_id}/{lang}/{v}' , 'CategoryController@get_sub_categories_level5_ios')->middleware('checkguest');
+    // sub category level 5 for android
+    Route::get('/sub_categories_android/level5/{sub_category_id}/{lang}/{v}' , 'CategoryController@get_sub_categories_level5_android')->middleware('checkguest');
+    
     // products last level
     Route::get('/products/last-level/{sub_category_id}/{lang}/{v}' , 'CategoryController@getproducts')->middleware('checkguest');
 

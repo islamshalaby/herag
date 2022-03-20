@@ -19,6 +19,8 @@ use App\Favorite;
 use App\Category;
 use App\Product;
 use App\Setting;
+use Carbon\Carbon;
+use App\Ad;
 use App\Visitor;
 
 
@@ -26,18 +28,42 @@ class CategoryController extends Controller
 {
     public function __construct()
     {
-        $this->middleware('auth:api', ['except' => ['getSubTwoCategoryOptions', 'getSubCategoryOptions', 'show_six_cat', 'getCategoryOptions', 'show_five_cat', 'show_four_cat', 'show_third_cat', 'show_second_cat', 'show_first_cat', 'getcategories', 'getAdSubCategories', 'get_sub_categories_level2', 'get_sub_categories_level3', 'get_sub_categories_level4', 'get_sub_categories_level5', 'getproducts']]);
+        $this->middleware('auth:api', ['except' => ['getSubTwoCategoryOptions', 
+        'getSubCategoryOptions', 
+        'show_six_cat', 
+        'getCategoryOptions', 
+        'show_five_cat', 
+        'show_four_cat', 
+        'show_third_cat', 
+        'show_second_cat', 
+        'show_first_cat', 
+        'getcategories', 
+        'getAdSubCategories', 
+        'get_sub_categories_level2', 
+        'get_sub_categories_level3', 
+        'get_sub_categories_level4', 
+        'get_sub_categories_level5', 
+        'getproducts', 
+        'getAdSubCategoriesIos',
+        'getAdSubCategoriesAndroid',
+        'get_sub_categories_level2_android',
+        'get_sub_categories_level3_ios',
+        'get_sub_categories_level3_android',
+        'get_sub_categories_level4_ios',
+        'get_sub_categories_level4_android',
+        'get_sub_categories_level5_ios',
+        'get_sub_categories_level5_android']]);
     }
 
     
 
-    public function getCatsSubCats($model, $lang, $show=true, $cat_id=0, $city_id=0, $all=false, $whereIn=[]) {
+    public function getCatsSubCats($model, $lang, $show=true, $cat_id=0, $all=false, $whereIn=[]) {
         $categories = $model::where('deleted', 0);
-        if ($city_id != 0) {
-            $categories = $categories->whereHas('Products', function($q) use ($city_id) {
-                $q->where('city_id', $city_id);
-            });
-        }
+        // if ($city_id != 0) {
+        //     $categories = $categories->whereHas('Products', function($q) use ($city_id) {
+        //         $q->where('city_id', $city_id);
+        //     });
+        // }
         if ($model == '\App\SubCategory' && $cat_id != 0) {
             $categories = $categories->where('category_id', $cat_id);
         }elseif ($model != '\App\Category' && $cat_id != 0) {
@@ -154,10 +180,10 @@ class CategoryController extends Controller
         $lang = $request->lang;
         Session::put('api_lang', $lang);
         if ($request->category_id != 0) {
-            $data['sub_categories'] = $this->getCatsSubCats('\App\SubCategory', $lang, false, $request->category_id, $visitor->city_id,  true);
+            $data['sub_categories'] = $this->getCatsSubCats('\App\SubCategory', $lang, false, $request->category_id,  true);
             $data['category'] = Category::select('id', 'title_en as title')->find($request->category_id);
         }else {
-            $categories = $this->getCatsSubCats('\App\Category', $lang, true, 0, $visitor->city_id, false);
+            $categories = $this->getCatsSubCats('\App\Category', $lang, true, 0, false);
             $plukCats = [];
             for ($i = 0; $i < count($categories); $i ++) {
                 array_push($plukCats, $categories[$i]['id']);
@@ -166,7 +192,7 @@ class CategoryController extends Controller
             if ($request->lang == 'ar') {
                 $main = 'الرئيسية';
             }
-            $data['sub_categories'] = $this->getCatsSubCats('\App\SubCategory', $lang, false, 0, $visitor->city_id, true, $plukCats);
+            $data['sub_categories'] = $this->getCatsSubCats('\App\SubCategory', $lang, false, 0, true, $plukCats);
             $data['category'] = (object)[
                 'id' => 0,
                 'title' => $main
@@ -230,6 +256,257 @@ class CategoryController extends Controller
         return response()->json($response, 200);
     }
 
+    // get ad subcategories ios
+    public function getAdSubCategoriesIos(Request $request)
+    {
+        if (!$request->header('uniqueid')) {
+            $response = APIHelpers::createApiResponse(true , 406 , 'unique id required header' , 'unique id required header'  , null , $request->lang);
+            return response()->json($response , 406);
+        }
+        $visitor = Visitor::where('unique_id', $request->header('uniqueid'))->select('city_id', 'area_id', 'unique_id')->first();
+        if (!$visitor) {
+            $response = APIHelpers::createApiResponse(true , 406 , 'there is no such visitor' , 'there is no such visitor'  , null , $request->lang);
+            return response()->json($response , 406);
+        }
+        $lang = $request->lang;
+        Session::put('api_lang', $lang);
+        if ($request->category_id != 0) {
+            $data['sub_categories'] = $this->getCatsSubCats('\App\SubCategory', $lang, false, $request->category_id,  true);
+            $data['category'] = Category::select('id', 'title_en as title')->find($request->category_id);
+        }else {
+            $categories = $this->getCatsSubCats('\App\Category', $lang, true, 0, false);
+            $plukCats = [];
+            for ($i = 0; $i < count($categories); $i ++) {
+                array_push($plukCats, $categories[$i]['id']);
+            }
+            $main = 'Main';
+            if ($request->lang == 'ar') {
+                $main = 'الرئيسية';
+            }
+            $data['sub_categories'] = $this->getCatsSubCats('\App\SubCategory', $lang, false, 0, true, $plukCats);
+            $data['category'] = (object)[
+                'id' => 0,
+                'title' => $main
+            ];
+       
+        }
+
+        $lang = $request->lang;
+        
+        $products = Product::where('status', 1)->where('publish', 'Y')->where('deleted', 0)->where('reviewed', 1)->with('Publisher');
+        if ($request->category_id != 0) {
+            $products = $products->where('category_id', $request->category_id);
+        }
+        if ($visitor->city_id != 0) {
+            $products = $products->where('city_id', $visitor->city_id);
+        }
+        if ($visitor->area_id != 0) {
+            $products = $products->where('area_id', $visitor->area_id);
+        }
+        $products = $products->select('id', 'title', 'main_image as image', 'created_at', 'user_id','city_id','area_id', 'price', 'views')
+        ->orderBy('created_at', 'desc')->simplePaginate(12);
+        $data['show_views'] = Setting::where('id', 1)->select('show_views')->first()['show_views'];
+        $user = auth()->user();
+        $i = 0;
+        $products->getCollection()->transform(function ($value) use ($i, $lang, $user, $visitor) {
+            ++$i;
+            
+            $value->show_price = true;
+            if ($value->price == 0) {
+                $value->show_price = false;
+            }
+            $value->address = $value->City->title_ar;
+            if ($lang == 'en') {
+                $value->address = $value->City->title_en;
+            }
+            $value->price = number_format((float)$value->price, 3, '.', '');
+
+            if ($user) {
+                $favorite = Favorite::where('user_id', $user->id)->where('product_id', $value->id)->first();
+                if ($favorite) {
+                    $value->favorite = true;
+                } else {
+                    $value->favorite = false;
+                }
+
+                $conversation = Participant::where('ad_product_id', $value->id)->where('user_id', $user->id)->first();
+                if ($conversation == null) {
+                    $value->conversation_id = 0;
+                } else {
+                    $value->conversation_id = $conversation->conversation_id;
+                }
+            }else {
+                $value->favorite = false;
+                $value->conversation_id = 0;
+            }
+            $value->time = $value->created_at->diffForHumans(['long' => true, 'parts' => 2, 'join' => ' و ']);
+            
+            // Your code here
+            return $value;
+        });
+
+        $products = $products->toArray();
+        
+        $new_ad = [];
+
+        for ($i = 0; $i < count($products['data']); $i++) {
+            array_push($new_ad , $products['data'][$i]);
+            if ((($i+1) % 4) == 0) {
+                $ad = Ad::where('city_id', $visitor->city_id)->select('id', 'image', 'type', 'content')->where('place', 1)->inRandomOrder()->first();
+                if (!$ad) {
+                    $ad = Ad::select('id', 'image', 'type', 'content')->where('place', 1)->inRandomOrder()->first();
+                }
+                if($ad){
+                    $ad->id = 0;
+                    $ad->title = $ad->content;
+                    $ad->user_id = 0;
+                    $ad->created_at = Carbon::now();
+                    $ad->city_id = 0;
+                    $ad->area_id = 0;
+                    $ad->price = '0';
+                    $ad->address = $ad->type;
+                    $ad->favorite =false;
+                    $ad->conversation_id =0;
+                    $ad->time ="";
+                    array_push($new_ad, $ad);
+                    
+                }
+            }
+        }
+        $products['data'] = $new_ad;
+        
+        $data['products'] = $products;
+        $response = APIHelpers::createApiResponse(false, 200, '', '', $data, $request->lang);
+        return response()->json($response, 200);
+    }
+
+    // get ad subcategories ios
+    public function getAdSubCategoriesAndroid(Request $request)
+    {
+        if (!$request->header('uniqueid')) {
+            $response = APIHelpers::createApiResponse(true , 406 , 'unique id required header' , 'unique id required header'  , null , $request->lang);
+            return response()->json($response , 406);
+        }
+        $visitor = Visitor::where('unique_id', $request->header('uniqueid'))->select('city_id', 'area_id', 'unique_id')->first();
+        if (!$visitor) {
+            $response = APIHelpers::createApiResponse(true , 406 , 'there is no such visitor' , 'there is no such visitor'  , null , $request->lang);
+            return response()->json($response , 406);
+        }
+        $lang = $request->lang;
+        Session::put('api_lang', $lang);
+        if ($request->category_id != 0) {
+            $data['sub_categories'] = $this->getCatsSubCats('\App\SubCategory', $lang, false, $request->category_id,  true);
+            $data['category'] = Category::select('id', 'title_en as title')->find($request->category_id);
+        }else {
+            $categories = $this->getCatsSubCats('\App\Category', $lang, true, 0, false);
+            $plukCats = [];
+            for ($i = 0; $i < count($categories); $i ++) {
+                array_push($plukCats, $categories[$i]['id']);
+            }
+            $main = 'Main';
+            if ($request->lang == 'ar') {
+                $main = 'الرئيسية';
+            }
+            $data['sub_categories'] = $this->getCatsSubCats('\App\SubCategory', $lang, false, 0, true, $plukCats);
+            $data['category'] = (object)[
+                'id' => 0,
+                'title' => $main
+            ];
+       
+        }
+
+        $lang = $request->lang;
+        
+        $products = Product::where('status', 1)->where('publish', 'Y')->where('deleted', 0)->where('reviewed', 1)->with('Publisher');
+        if ($request->category_id != 0) {
+            $products = $products->where('category_id', $request->category_id);
+        }
+        if ($visitor->city_id != 0) {
+            $products = $products->where('city_id', $visitor->city_id);
+        }
+        if ($visitor->area_id != 0) {
+            $products = $products->where('area_id', $visitor->area_id);
+        }
+        $products = $products->select('id', 'title', 'main_image as image', 'created_at', 'user_id','city_id','area_id', 'price', 'views')
+        ->orderBy('created_at', 'desc')->simplePaginate(12);
+        $data['show_views'] = Setting::where('id', 1)->select('show_views')->first()['show_views'];
+        $user = auth()->user();
+        
+        $i = 0;
+        $products->getCollection()->transform(function ($value) use ($i, $lang, $user, $visitor) {
+            ++$i;
+            
+            $value->show_price = true;
+            if ($value->price == 0) {
+                $value->show_price = false;
+            }
+            $value->address = $value->City->title_ar;
+            if ($lang == 'en') {
+                $value->address = $value->City->title_en;
+            }
+            $value->price = number_format((float)$value->price, 3, '.', '');
+
+            if ($user) {
+                $favorite = Favorite::where('user_id', $user->id)->where('product_id', $value->id)->first();
+                if ($favorite) {
+                    $value->favorite = true;
+                } else {
+                    $value->favorite = false;
+                }
+
+                $conversation = Participant::where('ad_product_id', $value->id)->where('user_id', $user->id)->first();
+                if ($conversation == null) {
+                    $value->conversation_id = 0;
+                } else {
+                    $value->conversation_id = $conversation->conversation_id;
+                }
+            }else {
+                $value->favorite = false;
+                $value->conversation_id = 0;
+            }
+            $value->time = $value->created_at->diffForHumans(['long' => true, 'parts' => 2, 'join' => ' و ']);
+            
+            // Your code here
+            return $value;
+        });
+
+        $products = $products->toArray();
+        
+        $new_ad = [];
+        $prods = [];
+
+        for ($i = 0; $i < count($products['data']); $i++) {
+            array_push($prods , $products['data'][$i]);
+            if ((($i+1) % 4) == 0) {
+                $ad = Ad::where('city_id', $visitor->city_id)->select('id', 'image', 'type', 'content')->where('place', 1)->inRandomOrder()->first();
+                if (!$ad) {
+                    $ad = Ad::select('id', 'image', 'type', 'content')->where('place', 1)->inRandomOrder()->first();
+                }
+                if($ad){
+                    $ad->id = 0;
+                    $ad->title = $ad->content;
+                    $ad->user_id = 0;
+                    $ad->created_at = Carbon::now();
+                    $ad->city_id = 0;
+                    $ad->area_id = 0;
+                    $ad->price = '0';
+                    $ad->address = $ad->type;
+                    $ad->favorite =false;
+                    $ad->conversation_id =0;
+                    $ad->time ="";
+                    $ad->products = $prods;
+                    array_push($new_ad, $ad);
+                    $prods = [];
+                }
+            }
+        }
+        $products['data'] = $new_ad;
+        
+        $data['products'] = $products;
+        $response = APIHelpers::createApiResponse(false, 200, '', '', $data, $request->lang);
+        return response()->json($response, 200);
+    }
+
     public function get_sub_categories_level2(Request $request)
     {
         if (!$request->header('uniqueid')) {
@@ -252,13 +529,13 @@ class CategoryController extends Controller
             return response()->json($response , 406);
         }
         if ($request->sub_category_id != 0) {
-            $data['sub_categories'] = $this->getCatsSubCats('\App\SubTwoCategory', $lang, false, $request->sub_category_id, $visitor->city_id, true);
+            $data['sub_categories'] = $this->getCatsSubCats('\App\SubTwoCategory', $lang, false, $request->sub_category_id, true);
             $data['sub_category_level1'] = SubCategory::where('id', $request->sub_category_id)->select('id', 'title_' . $lang . ' as title', 'category_id')->first();
             
             $data['category'] = Category::where('id', $data['sub_category_level1']['category_id'])->select('id', 'title_' . $lang . ' as title')->first();
         } else {
             $pluckSubCats = SubCategory::where('category_id', $request->category_id)->where('deleted', 0)->pluck('id')->toArray();
-            $data['sub_categories'] = $this->getCatsSubCats('\App\SubTwoCategory', $lang, false, 0, $visitor->city_id, true, $pluckSubCats);
+            $data['sub_categories'] = $this->getCatsSubCats('\App\SubTwoCategory', $lang, false, 0, true, $pluckSubCats);
             $data['sub_category_level1'] = (object)[
                 "id" => 0,
                 "title" => "All",
@@ -330,6 +607,281 @@ class CategoryController extends Controller
         return response()->json($response, 200);
     }
 
+    public function get_sub_categories_level2_ios(Request $request)
+    {
+        if (!$request->header('uniqueid')) {
+            $response = APIHelpers::createApiResponse(true , 406 , 'unique id required header' , 'unique id required header'  , null , $request->lang);
+            return response()->json($response , 406);
+        }
+        $validator = Validator::make($request->all(), [
+            'category_id' => 'required'
+        ]);
+
+        if ($validator->fails()) {
+            $response = APIHelpers::createApiResponse(true, 406, 'بعض الحقول مفقودة', 'بعض الحقول مفقودة', null, $request->lang);
+            return response()->json($response, 406);
+        }
+        $visitor = Visitor::where('unique_id', $request->header('uniqueid'))->select('city_id', 'area_id', 'unique_id')->first();
+        $lang = $request->lang;
+        Session::put('api_lang', $lang);
+        if (!$visitor) {
+            $response = APIHelpers::createApiResponse(true , 406 , 'there is no such visitor' , 'there is no such visitor'  , null , $request->lang);
+            return response()->json($response , 406);
+        }
+        if ($request->sub_category_id != 0) {
+            $data['sub_categories'] = $this->getCatsSubCats('\App\SubTwoCategory', $lang, false, $request->sub_category_id, true);
+            $data['sub_category_level1'] = SubCategory::where('id', $request->sub_category_id)->select('id', 'title_' . $lang . ' as title', 'category_id')->first();
+            
+            $data['category'] = Category::where('id', $data['sub_category_level1']['category_id'])->select('id', 'title_' . $lang . ' as title')->first();
+        } else {
+            $pluckSubCats = SubCategory::where('category_id', $request->category_id)->where('deleted', 0)->pluck('id')->toArray();
+            $data['sub_categories'] = $this->getCatsSubCats('\App\SubTwoCategory', $lang, false, 0, true, $pluckSubCats);
+            $data['sub_category_level1'] = (object)[
+                "id" => 0,
+                "title" => "All",
+                "category_id" => (int)$request->category_id
+            ];
+            
+            $data['category'] = Category::where('id', $request->category_id)->select('id', 'title_' . $lang . ' as title')->first();
+        }
+
+        
+        $lang = $request->lang;
+        
+        $products = Product::where('status', 1)->where('publish', 'Y')->where('deleted', 0)->where('reviewed', 1);
+        
+        if ($visitor->city_id != 0) {
+            $products = $products->where('city_id', $visitor->city_id);
+        }
+
+        if ($request->sub_category_id != 0) {
+            $products = $products->where('sub_category_id', $request->sub_category_id);
+        }
+
+        if ($visitor->area_id != 0) {
+            $products = $products->where('area_id', $visitor->area_id);
+        }
+        
+        $products = $products->with('Publisher')
+                ->select('id', 'title', 'main_image as image', 'created_at', 'user_id','city_id','area_id', 'price', 'views')
+                ->orderBy('created_at', 'desc')->simplePaginate(12);
+       
+       
+        $data['show_views'] = Setting::where('id', 1)->select('show_views')->first()['show_views'];
+        
+        $user = auth()->user();
+        $i = 0;
+        $products->getCollection()->transform(function ($value) use ($i, $lang, $user, $visitor) {
+            ++$i;
+            
+            $value->show_price = true;
+            if ($value->price == 0) {
+                $value->show_price = false;
+            }
+            $value->address = $value->City->title_ar;
+            if ($lang == 'en') {
+                $value->address = $value->City->title_en;
+            }
+            $value->price = number_format((float)$value->price, 3, '.', '');
+
+            if ($user) {
+                $favorite = Favorite::where('user_id', $user->id)->where('product_id', $value->id)->first();
+                if ($favorite) {
+                    $value->favorite = true;
+                } else {
+                    $value->favorite = false;
+                }
+
+                $conversation = Participant::where('ad_product_id', $value->id)->where('user_id', $user->id)->first();
+                if ($conversation == null) {
+                    $value->conversation_id = 0;
+                } else {
+                    $value->conversation_id = $conversation->conversation_id;
+                }
+            }else {
+                $value->favorite = false;
+                $value->conversation_id = 0;
+            }
+            $value->time = $value->created_at->diffForHumans(['long' => true, 'parts' => 2, 'join' => ' و ']);
+            
+            // Your code here
+            return $value;
+        });
+
+        $products = $products->toArray();
+        
+        $new_ad = [];
+
+        for ($i = 0; $i < count($products['data']); $i++) {
+            array_push($new_ad , $products['data'][$i]);
+            if ((($i+1) % 4) == 0) {
+                $ad = Ad::where('city_id', $visitor->city_id)->select('id', 'image', 'type', 'content')->where('place', 1)->inRandomOrder()->first();
+                if (!$ad) {
+                    $ad = Ad::select('id', 'image', 'type', 'content')->where('place', 1)->inRandomOrder()->first();
+                }
+                if($ad){
+                    $ad->id = 0;
+                    $ad->title = $ad->content;
+                    $ad->user_id = 0;
+                    $ad->created_at = Carbon::now();
+                    $ad->city_id = 0;
+                    $ad->area_id = 0;
+                    $ad->price = '0';
+                    $ad->address = $ad->type;
+                    $ad->favorite =false;
+                    $ad->conversation_id =0;
+                    $ad->time ="";
+                    array_push($new_ad, $ad);
+                    
+                }
+            }
+        }
+        $products['data'] = $new_ad;
+        
+        $data['products'] = $products;
+        $response = APIHelpers::createApiResponse(false, 200, '', '', $data, $request->lang);
+        return response()->json($response, 200);
+    }
+
+    public function get_sub_categories_level2_android(Request $request)
+    {
+        if (!$request->header('uniqueid')) {
+            $response = APIHelpers::createApiResponse(true , 406 , 'unique id required header' , 'unique id required header'  , null , $request->lang);
+            return response()->json($response , 406);
+        }
+        $validator = Validator::make($request->all(), [
+            'category_id' => 'required'
+        ]);
+
+        if ($validator->fails()) {
+            $response = APIHelpers::createApiResponse(true, 406, 'بعض الحقول مفقودة', 'بعض الحقول مفقودة', null, $request->lang);
+            return response()->json($response, 406);
+        }
+        $visitor = Visitor::where('unique_id', $request->header('uniqueid'))->select('city_id', 'area_id', 'unique_id')->first();
+        $lang = $request->lang;
+        Session::put('api_lang', $lang);
+        if (!$visitor) {
+            $response = APIHelpers::createApiResponse(true , 406 , 'there is no such visitor' , 'there is no such visitor'  , null , $request->lang);
+            return response()->json($response , 406);
+        }
+        if ($request->sub_category_id != 0) {
+            $data['sub_categories'] = $this->getCatsSubCats('\App\SubTwoCategory', $lang, false, $request->sub_category_id, true);
+            $data['sub_category_level1'] = SubCategory::where('id', $request->sub_category_id)->select('id', 'title_' . $lang . ' as title', 'category_id')->first();
+            
+            $data['category'] = Category::where('id', $data['sub_category_level1']['category_id'])->select('id', 'title_' . $lang . ' as title')->first();
+        } else {
+            $pluckSubCats = SubCategory::where('category_id', $request->category_id)->where('deleted', 0)->pluck('id')->toArray();
+            $data['sub_categories'] = $this->getCatsSubCats('\App\SubTwoCategory', $lang, false, 0, true, $pluckSubCats);
+            $data['sub_category_level1'] = (object)[
+                "id" => 0,
+                "title" => "All",
+                "category_id" => (int)$request->category_id
+            ];
+            
+            $data['category'] = Category::where('id', $request->category_id)->select('id', 'title_' . $lang . ' as title')->first();
+        }
+
+        
+        $lang = $request->lang;
+        
+        $products = Product::where('status', 1)->where('publish', 'Y')->where('deleted', 0)->where('reviewed', 1);
+        
+        if ($visitor->city_id != 0) {
+            $products = $products->where('city_id', $visitor->city_id);
+        }
+
+        if ($request->sub_category_id != 0) {
+            $products = $products->where('sub_category_id', $request->sub_category_id);
+        }
+
+        if ($visitor->area_id != 0) {
+            $products = $products->where('area_id', $visitor->area_id);
+        }
+        
+        $products = $products->with('Publisher')
+                ->select('id', 'title', 'main_image as image', 'created_at', 'user_id','city_id','area_id', 'price', 'views')
+                ->orderBy('created_at', 'desc')->simplePaginate(12);
+       
+       
+        $data['show_views'] = Setting::where('id', 1)->select('show_views')->first()['show_views'];
+        
+        $user = auth()->user();
+        
+        $i = 0;
+        $products->getCollection()->transform(function ($value) use ($i, $lang, $user, $visitor) {
+            ++$i;
+            
+            $value->show_price = true;
+            if ($value->price == 0) {
+                $value->show_price = false;
+            }
+            $value->address = $value->City->title_ar;
+            if ($lang == 'en') {
+                $value->address = $value->City->title_en;
+            }
+            $value->price = number_format((float)$value->price, 3, '.', '');
+
+            if ($user) {
+                $favorite = Favorite::where('user_id', $user->id)->where('product_id', $value->id)->first();
+                if ($favorite) {
+                    $value->favorite = true;
+                } else {
+                    $value->favorite = false;
+                }
+
+                $conversation = Participant::where('ad_product_id', $value->id)->where('user_id', $user->id)->first();
+                if ($conversation == null) {
+                    $value->conversation_id = 0;
+                } else {
+                    $value->conversation_id = $conversation->conversation_id;
+                }
+            }else {
+                $value->favorite = false;
+                $value->conversation_id = 0;
+            }
+            $value->time = $value->created_at->diffForHumans(['long' => true, 'parts' => 2, 'join' => ' و ']);
+            
+            // Your code here
+            return $value;
+        });
+
+        $products = $products->toArray();
+        
+        $new_ad = [];
+        $prods = [];
+
+        for ($i = 0; $i < count($products['data']); $i++) {
+            array_push($prods , $products['data'][$i]);
+            if ((($i+1) % 4) == 0) {
+                $ad = Ad::where('city_id', $visitor->city_id)->select('id', 'image', 'type', 'content')->where('place', 1)->inRandomOrder()->first();
+                if (!$ad) {
+                    $ad = Ad::select('id', 'image', 'type', 'content')->where('place', 1)->inRandomOrder()->first();
+                }
+                if($ad){
+                    $ad->id = 0;
+                    $ad->title = $ad->content;
+                    $ad->user_id = 0;
+                    $ad->created_at = Carbon::now();
+                    $ad->city_id = 0;
+                    $ad->area_id = 0;
+                    $ad->price = '0';
+                    $ad->address = $ad->type;
+                    $ad->favorite =false;
+                    $ad->conversation_id =0;
+                    $ad->time ="";
+                    $ad->products = $prods;
+                    array_push($new_ad, $ad);
+                    $prods = [];
+                }
+            }
+        }
+        $products['data'] = $new_ad;
+        
+        $data['products'] = $products;
+        $response = APIHelpers::createApiResponse(false, 200, '', '', $data, $request->lang);
+        return response()->json($response, 200);
+    }
+
     public function get_sub_categories_level3(Request $request)
     {
         if (!$request->header('uniqueid')) {
@@ -356,7 +908,7 @@ class CategoryController extends Controller
         $subCategoriesTwo = SubTwoCategory::where('deleted', 0)->whereIn('sub_category_id', $subCategories)->pluck('id')->toArray();
 
         if ($request->sub_category_id != 0) {
-            $data['sub_categories'] = $this->getCatsSubCats('\App\SubThreeCategory', $lang, false, $request->sub_category_id, $visitor->city_id, true);
+            $data['sub_categories'] = $this->getCatsSubCats('\App\SubThreeCategory', $lang, false, $request->sub_category_id, true);
 
             $data['sub_category_level2'] = SubTwoCategory::where('id', $request->sub_category_id)->select('id', 'title_' . $lang . ' as title', 'sub_category_id')->first();
             
@@ -371,11 +923,9 @@ class CategoryController extends Controller
             
             $secondIds = SubTwoCategory::where('sub_category_id', $request->sub_category_level1_id)->where('deleted', 0)->pluck('id')->toArray();
             
-            $data['sub_categories'] = $this->getCatsSubCats('\App\SubThreeCategory', $lang, false, 0, $visitor->city_id, true, $secondIds);
+            $data['sub_categories'] = $this->getCatsSubCats('\App\SubThreeCategory', $lang, false, 0, true, $secondIds);
 
             $data['category'] = Category::where('id', $request->category_id)->select('id', 'title_' . $lang . ' as title')->first();
-
-
         }
 
 
@@ -443,6 +993,305 @@ class CategoryController extends Controller
         return response()->json($response, 200);
     }
 
+    public function get_sub_categories_level3_ios(Request $request)
+    {
+        if (!$request->header('uniqueid')) {
+            $response = APIHelpers::createApiResponse(true , 406 , 'unique id required header' , 'unique id required header'  , null , $request->lang);
+            return response()->json($response , 406);
+        }
+        $validator = Validator::make($request->all(), [
+            'category_id' => 'required'
+        ]);
+
+        if ($validator->fails() && !isset($request->sub_category_level1_id)) {
+            $response = APIHelpers::createApiResponse(true, 406, 'بعض الحقول مفقودة', 'بعض الحقول مفقودة', null, $request->lang);
+            return response()->json($response, 406);
+        }
+        $visitor = Visitor::where('unique_id', $request->header('uniqueid'))->select('city_id', 'area_id', 'unique_id')->first();
+        $lang = $request->lang;
+        Session::put('api_lang', $lang);
+        if (!$visitor) {
+            $response = APIHelpers::createApiResponse(true , 406 , 'there is no such visitor' , 'there is no such visitor'  , null , $request->lang);
+            return response()->json($response , 406);
+        }
+
+        $subCategories = SubCategory::where('category_id', $request->category_id)->pluck('id')->toArray();
+        $subCategoriesTwo = SubTwoCategory::where('deleted', 0)->whereIn('sub_category_id', $subCategories)->pluck('id')->toArray();
+
+        if ($request->sub_category_id != 0) {
+            $data['sub_categories'] = $this->getCatsSubCats('\App\SubThreeCategory', $lang, false, $request->sub_category_id, true);
+
+            $data['sub_category_level2'] = SubTwoCategory::where('id', $request->sub_category_id)->select('id', 'title_' . $lang . ' as title', 'sub_category_id')->first();
+            
+            $data['category'] = Category::where('id', $request->category_id)->select('id', 'title_' . $lang . ' as title')->first();
+        } else {
+
+            $data['sub_category_level2'] = (object)[
+                "id" => 0,
+                "title" => "All",
+                "sub_category_id" => (int)$request->sub_category_level1_id
+            ];
+            
+            $secondIds = SubTwoCategory::where('sub_category_id', $request->sub_category_level1_id)->where('deleted', 0)->pluck('id')->toArray();
+            
+            $data['sub_categories'] = $this->getCatsSubCats('\App\SubThreeCategory', $lang, false, 0, true, $secondIds);
+
+            $data['category'] = Category::where('id', $request->category_id)->select('id', 'title_' . $lang . ' as title')->first();
+        }
+
+
+        for ($i = 0; $i < count($data['sub_categories']); $i++) {
+            $cat_ids[$i] = $data['sub_categories'][$i]['id'];
+        }
+        
+        //end all button
+        $products = Product::where('status', 1)->where('deleted', 0)->where('reviewed', 1)->where('publish', 'Y')->with('Publisher')
+            ->where('category_id', $request->category_id)->select('id', 'title', 'main_image as image', 'created_at', 'user_id','city_id','area_id', 'price', 'views');
+        if ($request->sub_category_id != 0) {
+            $products = $products->where('sub_category_two_id', $request->sub_category_id);
+        }
+
+        if ($visitor->city_id != 0) {
+            $products = $products->where('city_id', $visitor->city_id);
+        }
+
+        if ($visitor->area_id != 0) {
+            $products = $products->where('area_id', $visitor->area_id);
+        }
+
+        if ($request->sub_category_level1_id != 0) {
+            $products = $products->where('sub_category_id', $request->sub_category_level1_id);
+        }
+
+        $products = $products->orderBy('created_at', 'desc')->simplePaginate(12);
+        $data['show_views'] = Setting::where('id', 1)->select('show_views')->first()['show_views'];
+        $user = auth()->user();
+        $i = 0;
+        $products->getCollection()->transform(function ($value) use ($i, $lang, $user, $visitor) {
+            ++$i;
+            
+            $value->show_price = true;
+            if ($value->price == 0) {
+                $value->show_price = false;
+            }
+            $value->address = $value->City->title_ar;
+            if ($lang == 'en') {
+                $value->address = $value->City->title_en;
+            }
+            $value->price = number_format((float)$value->price, 3, '.', '');
+
+            if ($user) {
+                $favorite = Favorite::where('user_id', $user->id)->where('product_id', $value->id)->first();
+                if ($favorite) {
+                    $value->favorite = true;
+                } else {
+                    $value->favorite = false;
+                }
+
+                $conversation = Participant::where('ad_product_id', $value->id)->where('user_id', $user->id)->first();
+                if ($conversation == null) {
+                    $value->conversation_id = 0;
+                } else {
+                    $value->conversation_id = $conversation->conversation_id;
+                }
+            }else {
+                $value->favorite = false;
+                $value->conversation_id = 0;
+            }
+            $value->time = $value->created_at->diffForHumans(['long' => true, 'parts' => 2, 'join' => ' و ']);
+            
+            // Your code here
+            return $value;
+        });
+
+        $products = $products->toArray();
+        
+        $new_ad = [];
+
+        for ($i = 0; $i < count($products['data']); $i++) {
+            array_push($new_ad , $products['data'][$i]);
+            if ((($i+1) % 4) == 0) {
+                $ad = Ad::where('city_id', $visitor->city_id)->select('id', 'image', 'type', 'content')->where('place', 1)->inRandomOrder()->first();
+                if (!$ad) {
+                    $ad = Ad::select('id', 'image', 'type', 'content')->where('place', 1)->inRandomOrder()->first();
+                }
+                if($ad){
+                    $ad->id = 0;
+                    $ad->title = $ad->content;
+                    $ad->user_id = 0;
+                    $ad->created_at = Carbon::now();
+                    $ad->city_id = 0;
+                    $ad->area_id = 0;
+                    $ad->price = '0';
+                    $ad->address = $ad->type;
+                    $ad->favorite =false;
+                    $ad->conversation_id =0;
+                    $ad->time ="";
+                    array_push($new_ad, $ad);
+                    
+                }
+            }
+        }
+        $products['data'] = $new_ad;
+        
+        $data['products'] = $products;
+
+
+        $response = APIHelpers::createApiResponse(false, 200, '', '', $data, $request->lang);
+        return response()->json($response, 200);
+    }
+
+    public function get_sub_categories_level3_android(Request $request)
+    {
+        if (!$request->header('uniqueid')) {
+            $response = APIHelpers::createApiResponse(true , 406 , 'unique id required header' , 'unique id required header'  , null , $request->lang);
+            return response()->json($response , 406);
+        }
+        $validator = Validator::make($request->all(), [
+            'category_id' => 'required'
+        ]);
+
+        if ($validator->fails() && !isset($request->sub_category_level1_id)) {
+            $response = APIHelpers::createApiResponse(true, 406, 'بعض الحقول مفقودة', 'بعض الحقول مفقودة', null, $request->lang);
+            return response()->json($response, 406);
+        }
+        $visitor = Visitor::where('unique_id', $request->header('uniqueid'))->select('city_id', 'area_id', 'unique_id')->first();
+        $lang = $request->lang;
+        Session::put('api_lang', $lang);
+        if (!$visitor) {
+            $response = APIHelpers::createApiResponse(true , 406 , 'there is no such visitor' , 'there is no such visitor'  , null , $request->lang);
+            return response()->json($response , 406);
+        }
+
+        $subCategories = SubCategory::where('category_id', $request->category_id)->pluck('id')->toArray();
+        $subCategoriesTwo = SubTwoCategory::where('deleted', 0)->whereIn('sub_category_id', $subCategories)->pluck('id')->toArray();
+
+        if ($request->sub_category_id != 0) {
+            $data['sub_categories'] = $this->getCatsSubCats('\App\SubThreeCategory', $lang, false, $request->sub_category_id, true);
+
+            $data['sub_category_level2'] = SubTwoCategory::where('id', $request->sub_category_id)->select('id', 'title_' . $lang . ' as title', 'sub_category_id')->first();
+            
+            $data['category'] = Category::where('id', $request->category_id)->select('id', 'title_' . $lang . ' as title')->first();
+        } else {
+
+            $data['sub_category_level2'] = (object)[
+                "id" => 0,
+                "title" => "All",
+                "sub_category_id" => (int)$request->sub_category_level1_id
+            ];
+            
+            $secondIds = SubTwoCategory::where('sub_category_id', $request->sub_category_level1_id)->where('deleted', 0)->pluck('id')->toArray();
+            
+            $data['sub_categories'] = $this->getCatsSubCats('\App\SubThreeCategory', $lang, false, 0, true, $secondIds);
+
+            $data['category'] = Category::where('id', $request->category_id)->select('id', 'title_' . $lang . ' as title')->first();
+        }
+
+
+        for ($i = 0; $i < count($data['sub_categories']); $i++) {
+            $cat_ids[$i] = $data['sub_categories'][$i]['id'];
+        }
+        
+        //end all button
+        $products = Product::where('status', 1)->where('deleted', 0)->where('reviewed', 1)->where('publish', 'Y')->with('Publisher')
+            ->where('category_id', $request->category_id)->select('id', 'title', 'main_image as image', 'created_at', 'user_id','city_id','area_id', 'price', 'views');
+        if ($request->sub_category_id != 0) {
+            $products = $products->where('sub_category_two_id', $request->sub_category_id);
+        }
+
+        if ($visitor->city_id != 0) {
+            $products = $products->where('city_id', $visitor->city_id);
+        }
+
+        if ($visitor->area_id != 0) {
+            $products = $products->where('area_id', $visitor->area_id);
+        }
+
+        if ($request->sub_category_level1_id != 0) {
+            $products = $products->where('sub_category_id', $request->sub_category_level1_id);
+        }
+
+        $products = $products->orderBy('created_at', 'desc')->simplePaginate(12);
+        $data['show_views'] = Setting::where('id', 1)->select('show_views')->first()['show_views'];
+        $user = auth()->user();
+        
+        $i = 0;
+        $products->getCollection()->transform(function ($value) use ($i, $lang, $user, $visitor) {
+            ++$i;
+            
+            $value->show_price = true;
+            if ($value->price == 0) {
+                $value->show_price = false;
+            }
+            $value->address = $value->City->title_ar;
+            if ($lang == 'en') {
+                $value->address = $value->City->title_en;
+            }
+            $value->price = number_format((float)$value->price, 3, '.', '');
+
+            if ($user) {
+                $favorite = Favorite::where('user_id', $user->id)->where('product_id', $value->id)->first();
+                if ($favorite) {
+                    $value->favorite = true;
+                } else {
+                    $value->favorite = false;
+                }
+
+                $conversation = Participant::where('ad_product_id', $value->id)->where('user_id', $user->id)->first();
+                if ($conversation == null) {
+                    $value->conversation_id = 0;
+                } else {
+                    $value->conversation_id = $conversation->conversation_id;
+                }
+            }else {
+                $value->favorite = false;
+                $value->conversation_id = 0;
+            }
+            $value->time = $value->created_at->diffForHumans(['long' => true, 'parts' => 2, 'join' => ' و ']);
+            
+            // Your code here
+            return $value;
+        });
+
+        $products = $products->toArray();
+        
+        $new_ad = [];
+        $prods = [];
+
+        for ($i = 0; $i < count($products['data']); $i++) {
+            array_push($prods , $products['data'][$i]);
+            if ((($i+1) % 4) == 0) {
+                $ad = Ad::where('city_id', $visitor->city_id)->select('id', 'image', 'type', 'content')->where('place', 1)->inRandomOrder()->first();
+                if (!$ad) {
+                    $ad = Ad::select('id', 'image', 'type', 'content')->where('place', 1)->inRandomOrder()->first();
+                }
+                if($ad){
+                    $ad->id = 0;
+                    $ad->title = $ad->content;
+                    $ad->user_id = 0;
+                    $ad->created_at = Carbon::now();
+                    $ad->city_id = 0;
+                    $ad->area_id = 0;
+                    $ad->price = '0';
+                    $ad->address = $ad->type;
+                    $ad->favorite =false;
+                    $ad->conversation_id =0;
+                    $ad->time ="";
+                    $ad->products = $prods;
+                    array_push($new_ad, $ad);
+                    $prods = [];
+                }
+            }
+        }
+        $products['data'] = $new_ad;
+        
+        $data['products'] = $products;
+
+
+        $response = APIHelpers::createApiResponse(false, 200, '', '', $data, $request->lang);
+        return response()->json($response, 200);
+    }
+
     public function get_sub_categories_level4(Request $request)
     {
         if (!$request->header('uniqueid')) {
@@ -480,12 +1329,12 @@ class CategoryController extends Controller
         }
 
         if ($request->sub_category_id != 0) {
-            $data['sub_categories'] = $this->getCatsSubCats('\App\SubFourCategory', $lang, false, $request->sub_category_id, $visitor->city_id, true);
+            $data['sub_categories'] = $this->getCatsSubCats('\App\SubFourCategory', $lang, false, $request->sub_category_id, true);
             $data['sub_category_level3'] = SubThreeCategory::where('id', $request->sub_category_id)->select('id', 'title_' . $lang . ' as title', 'sub_category_id')->first();
 
             $data['category'] = Category::where('id', $request->category_id)->select('id', 'title_' . $lang . ' as title')->first();
         } else {
-            $data['sub_categories'] = $this->getCatsSubCats('\App\SubFourCategory', $lang, false, 0, $visitor->city_id, false, $subCategoriesThree);
+            $data['sub_categories'] = $this->getCatsSubCats('\App\SubFourCategory', $lang, false, 0, false, $subCategoriesThree);
             $data['sub_category_level3'] = (object)[
                 "id" => 0,
                 "title" => "All",
@@ -558,6 +1407,311 @@ class CategoryController extends Controller
         return response()->json($response, 200);
     }
 
+    public function get_sub_categories_level4_ios(Request $request)
+    {
+        if (!$request->header('uniqueid')) {
+            $response = APIHelpers::createApiResponse(true , 406 , 'unique id required header' , 'unique id required header'  , null , $request->lang);
+            return response()->json($response , 406);
+        }
+        $validator = Validator::make($request->all(), [
+            'category_id' => 'required'
+        ]);
+
+        if ($validator->fails() && !isset($request->sub_category_level2_id) && !isset($request->sub_category_level1_id)) {
+            $response = APIHelpers::createApiResponse(true, 406, 'بعض الحقول مفقودة', 'بعض الحقول مفقودة', null, $request->lang);
+            return response()->json($response, 406);
+        }
+        $visitor = Visitor::where('unique_id', $request->header('uniqueid'))->select('city_id', 'area_id', 'unique_id')->first();
+        $lang = $request->lang;
+        Session::put('api_lang', $lang);
+        if (!$visitor) {
+            $response = APIHelpers::createApiResponse(true , 406 , 'there is no such visitor' , 'there is no such visitor'  , null , $request->lang);
+            return response()->json($response , 406);
+        }
+
+
+        if ($request->sub_category_level1_id == 0) {
+            $subCategories = SubCategory::where('deleted', 0)->where('category_id', $request->category_id)->pluck('id')->toArray();
+            $subCategoriesTwo = SubTwoCategory::where('deleted', 0)->whereIn('sub_category_id', $subCategories)->pluck('id')->toArray();
+        } else {
+            $subCategoriesTwo = SubTwoCategory::where('deleted', 0)->where('sub_category_id', $request->sub_category_level1_id)->pluck('id')->toArray();
+        }
+
+        if ($request->sub_category_level2_id == 0) {
+            $subCategoriesThree = SubThreeCategory::where('deleted', 0)->whereIn('sub_category_id', $subCategoriesTwo)->pluck('id')->toArray();
+        } else {
+            $subCategoriesThree = SubThreeCategory::where('deleted', 0)->where('sub_category_id', $request->sub_category_level2_id)->pluck('id')->toArray();
+        }
+
+        if ($request->sub_category_id != 0) {
+            $data['sub_categories'] = $this->getCatsSubCats('\App\SubFourCategory', $lang, false, $request->sub_category_id, true);
+            $data['sub_category_level3'] = SubThreeCategory::where('id', $request->sub_category_id)->select('id', 'title_' . $lang . ' as title', 'sub_category_id')->first();
+
+            $data['category'] = Category::where('id', $request->category_id)->select('id', 'title_' . $lang . ' as title')->first();
+        } else {
+            $data['sub_categories'] = $this->getCatsSubCats('\App\SubFourCategory', $lang, false, 0, false, $subCategoriesThree);
+            $data['sub_category_level3'] = (object)[
+                "id" => 0,
+                "title" => "All",
+                "sub_category_id" => (int)$request->sub_category_level2_id
+            ];
+
+            $data['category'] = Category::where('id', $request->category_id)->select('id', 'title_' . $lang . ' as title')->first();
+        }
+
+        $products = Product::where('status', 1)->where('deleted', 0)->where('reviewed', 1)->where('publish', 'Y')->with('Publisher');
+        if ($request->sub_category_id != 0) {
+            $products = $products->where('sub_category_three_id', $request->sub_category_id);
+        }
+
+        if ($visitor->city_id != 0) {
+            $products = $products->where('city_id', $visitor->city_id);
+        }
+
+        if ($visitor->area_id != 0) {
+            $products = $products->where('area_id', $visitor->area_id);
+        }
+
+        if ($request->sub_category_level2_id != 0) {
+            $products = $products->where('sub_category_two_id', $request->sub_category_level2_id);
+        }
+
+        if ($request->sub_category_level1_id != 0) {
+            $products = $products->where('sub_category_id', $request->sub_category_level1_id);
+        }
+
+        $products = $products->select('id', 'title', 'main_image as image', 'created_at', 'user_id','city_id','area_id', 'price', 'views')
+            ->orderBy('created_at', 'desc')->simplePaginate(12);
+        $data['show_views'] = Setting::where('id', 1)->select('show_views')->first()['show_views'];
+        $user = auth()->user();
+        $i = 0;
+        $products->getCollection()->transform(function ($value) use ($i, $lang, $user, $visitor) {
+            ++$i;
+            
+            $value->show_price = true;
+            if ($value->price == 0) {
+                $value->show_price = false;
+            }
+            $value->address = $value->City->title_ar;
+            if ($lang == 'en') {
+                $value->address = $value->City->title_en;
+            }
+            $value->price = number_format((float)$value->price, 3, '.', '');
+
+            if ($user) {
+                $favorite = Favorite::where('user_id', $user->id)->where('product_id', $value->id)->first();
+                if ($favorite) {
+                    $value->favorite = true;
+                } else {
+                    $value->favorite = false;
+                }
+
+                $conversation = Participant::where('ad_product_id', $value->id)->where('user_id', $user->id)->first();
+                if ($conversation == null) {
+                    $value->conversation_id = 0;
+                } else {
+                    $value->conversation_id = $conversation->conversation_id;
+                }
+            }else {
+                $value->favorite = false;
+                $value->conversation_id = 0;
+            }
+            $value->time = $value->created_at->diffForHumans(['long' => true, 'parts' => 2, 'join' => ' و ']);
+            
+            // Your code here
+            return $value;
+        });
+
+        $products = $products->toArray();
+        
+        $new_ad = [];
+
+        for ($i = 0; $i < count($products['data']); $i++) {
+            array_push($new_ad , $products['data'][$i]);
+            if ((($i+1) % 4) == 0) {
+                $ad = Ad::where('city_id', $visitor->city_id)->select('id', 'image', 'type', 'content')->where('place', 1)->inRandomOrder()->first();
+                if (!$ad) {
+                    $ad = Ad::select('id', 'image', 'type', 'content')->where('place', 1)->inRandomOrder()->first();
+                }
+                if($ad){
+                    $ad->id = 0;
+                    $ad->title = $ad->content;
+                    $ad->user_id = 0;
+                    $ad->created_at = Carbon::now();
+                    $ad->city_id = 0;
+                    $ad->area_id = 0;
+                    $ad->price = '0';
+                    $ad->address = $ad->type;
+                    $ad->favorite =false;
+                    $ad->conversation_id =0;
+                    $ad->time ="";
+                    array_push($new_ad, $ad);
+                    
+                }
+            }
+        }
+        $products['data'] = $new_ad;
+        
+        $data['products'] = $products;
+
+        $response = APIHelpers::createApiResponse(false, 200, '', '', $data, $request->lang);
+        return response()->json($response, 200);
+    }
+
+    public function get_sub_categories_level4_android(Request $request)
+    {
+        if (!$request->header('uniqueid')) {
+            $response = APIHelpers::createApiResponse(true , 406 , 'unique id required header' , 'unique id required header'  , null , $request->lang);
+            return response()->json($response , 406);
+        }
+        $validator = Validator::make($request->all(), [
+            'category_id' => 'required'
+        ]);
+
+        if ($validator->fails() && !isset($request->sub_category_level2_id) && !isset($request->sub_category_level1_id)) {
+            $response = APIHelpers::createApiResponse(true, 406, 'بعض الحقول مفقودة', 'بعض الحقول مفقودة', null, $request->lang);
+            return response()->json($response, 406);
+        }
+        $visitor = Visitor::where('unique_id', $request->header('uniqueid'))->select('city_id', 'area_id', 'unique_id')->first();
+        $lang = $request->lang;
+        Session::put('api_lang', $lang);
+        if (!$visitor) {
+            $response = APIHelpers::createApiResponse(true , 406 , 'there is no such visitor' , 'there is no such visitor'  , null , $request->lang);
+            return response()->json($response , 406);
+        }
+
+
+        if ($request->sub_category_level1_id == 0) {
+            $subCategories = SubCategory::where('deleted', 0)->where('category_id', $request->category_id)->pluck('id')->toArray();
+            $subCategoriesTwo = SubTwoCategory::where('deleted', 0)->whereIn('sub_category_id', $subCategories)->pluck('id')->toArray();
+        } else {
+            $subCategoriesTwo = SubTwoCategory::where('deleted', 0)->where('sub_category_id', $request->sub_category_level1_id)->pluck('id')->toArray();
+        }
+
+        if ($request->sub_category_level2_id == 0) {
+            $subCategoriesThree = SubThreeCategory::where('deleted', 0)->whereIn('sub_category_id', $subCategoriesTwo)->pluck('id')->toArray();
+        } else {
+            $subCategoriesThree = SubThreeCategory::where('deleted', 0)->where('sub_category_id', $request->sub_category_level2_id)->pluck('id')->toArray();
+        }
+
+        if ($request->sub_category_id != 0) {
+            $data['sub_categories'] = $this->getCatsSubCats('\App\SubFourCategory', $lang, false, $request->sub_category_id, true);
+            $data['sub_category_level3'] = SubThreeCategory::where('id', $request->sub_category_id)->select('id', 'title_' . $lang . ' as title', 'sub_category_id')->first();
+
+            $data['category'] = Category::where('id', $request->category_id)->select('id', 'title_' . $lang . ' as title')->first();
+        } else {
+            $data['sub_categories'] = $this->getCatsSubCats('\App\SubFourCategory', $lang, false, 0, false, $subCategoriesThree);
+            $data['sub_category_level3'] = (object)[
+                "id" => 0,
+                "title" => "All",
+                "sub_category_id" => (int)$request->sub_category_level2_id
+            ];
+
+            $data['category'] = Category::where('id', $request->category_id)->select('id', 'title_' . $lang . ' as title')->first();
+        }
+
+        $products = Product::where('status', 1)->where('deleted', 0)->where('reviewed', 1)->where('publish', 'Y')->with('Publisher');
+        if ($request->sub_category_id != 0) {
+            $products = $products->where('sub_category_three_id', $request->sub_category_id);
+        }
+
+        if ($visitor->city_id != 0) {
+            $products = $products->where('city_id', $visitor->city_id);
+        }
+
+        if ($visitor->area_id != 0) {
+            $products = $products->where('area_id', $visitor->area_id);
+        }
+
+        if ($request->sub_category_level2_id != 0) {
+            $products = $products->where('sub_category_two_id', $request->sub_category_level2_id);
+        }
+
+        if ($request->sub_category_level1_id != 0) {
+            $products = $products->where('sub_category_id', $request->sub_category_level1_id);
+        }
+
+        $products = $products->select('id', 'title', 'main_image as image', 'created_at', 'user_id','city_id','area_id', 'price', 'views')
+            ->orderBy('created_at', 'desc')->simplePaginate(12);
+        $data['show_views'] = Setting::where('id', 1)->select('show_views')->first()['show_views'];
+        
+        $user = auth()->user();
+        
+        $i = 0;
+        $products->getCollection()->transform(function ($value) use ($i, $lang, $user, $visitor) {
+            ++$i;
+            
+            $value->show_price = true;
+            if ($value->price == 0) {
+                $value->show_price = false;
+            }
+            $value->address = $value->City->title_ar;
+            if ($lang == 'en') {
+                $value->address = $value->City->title_en;
+            }
+            $value->price = number_format((float)$value->price, 3, '.', '');
+
+            if ($user) {
+                $favorite = Favorite::where('user_id', $user->id)->where('product_id', $value->id)->first();
+                if ($favorite) {
+                    $value->favorite = true;
+                } else {
+                    $value->favorite = false;
+                }
+
+                $conversation = Participant::where('ad_product_id', $value->id)->where('user_id', $user->id)->first();
+                if ($conversation == null) {
+                    $value->conversation_id = 0;
+                } else {
+                    $value->conversation_id = $conversation->conversation_id;
+                }
+            }else {
+                $value->favorite = false;
+                $value->conversation_id = 0;
+            }
+            $value->time = $value->created_at->diffForHumans(['long' => true, 'parts' => 2, 'join' => ' و ']);
+            
+            // Your code here
+            return $value;
+        });
+
+        $products = $products->toArray();
+        
+        $new_ad = [];
+        $prods = [];
+
+        for ($i = 0; $i < count($products['data']); $i++) {
+            array_push($prods , $products['data'][$i]);
+            if ((($i+1) % 4) == 0) {
+                $ad = Ad::where('city_id', $visitor->city_id)->select('id', 'image', 'type', 'content')->where('place', 1)->inRandomOrder()->first();
+                if (!$ad) {
+                    $ad = Ad::select('id', 'image', 'type', 'content')->where('place', 1)->inRandomOrder()->first();
+                }
+                if($ad){
+                    $ad->id = 0;
+                    $ad->title = $ad->content;
+                    $ad->user_id = 0;
+                    $ad->created_at = Carbon::now();
+                    $ad->city_id = 0;
+                    $ad->area_id = 0;
+                    $ad->price = '0';
+                    $ad->address = $ad->type;
+                    $ad->favorite =false;
+                    $ad->conversation_id =0;
+                    $ad->time ="";
+                    $ad->products = $prods;
+                    array_push($new_ad, $ad);
+                    $prods = [];
+                }
+            }
+        }
+        $products['data'] = $new_ad;
+        $data['products'] = $products;
+
+        $response = APIHelpers::createApiResponse(false, 200, '', '', $data, $request->lang);
+        return response()->json($response, 200);
+    }
+
     public function get_sub_categories_level5(Request $request)
     {
         if (!$request->header('uniqueid')) {
@@ -596,13 +1750,13 @@ class CategoryController extends Controller
             $subCategoriesFour = SubFourCategory::where('deleted', 0)->where('sub_category_id', $request->sub_category_level3_id)->pluck('id')->toArray();
         }
         if ($request->sub_category_id != 0) {
-            $data['sub_categories'] = $this->getCatsSubCats('\App\SubFiveCategory', $lang, false, $request->sub_category_id, $visitor->city_id, true);
+            $data['sub_categories'] = $this->getCatsSubCats('\App\SubFiveCategory', $lang, false, $request->sub_category_id, true);
         
             $data['sub_category_level4'] = SubFourCategory::where('deleted', 0)->where('sub_category_id', $request->sub_category_id)->select('id', 'image', 'title_' . $lang . ' as title')->first();
             
             $data['category'] = Category::where('id', $request->category_id)->select('id', 'title_' . $lang . ' as title')->first();
         } else {
-            $data['sub_categories'] = $this->getCatsSubCats('\App\SubFiveCategory', $lang, false, 0, $visitor->city_id, false, $subCategoriesFour);
+            $data['sub_categories'] = $this->getCatsSubCats('\App\SubFiveCategory', $lang, false, 0, false, $subCategoriesFour);
             $data['sub_category_level3'] = (object)[
                 "id" => 0,
                 "title" => "All",
@@ -611,8 +1765,6 @@ class CategoryController extends Controller
             
             $data['category'] = Category::where('id', $request->category_id)->select('id', 'title_' . $lang . ' as title')->first();
         }
-        
-        
 
         $products = Product::where('status', 1)->where('publish', 'Y')->where('deleted', 0)->where('reviewed', 1)->with('Publisher');
         if ($request->sub_category_id != 0) {
@@ -669,6 +1821,312 @@ class CategoryController extends Controller
             $products[$i]['time'] = $products[$i]['created_at']->diffForHumans(['long' => true, 'parts' => 2, 'join' => ' و ']);
         }
         
+        $data['products'] = $products;
+
+
+        $response = APIHelpers::createApiResponse(false, 200, '', '', $data, $request->lang);
+        return response()->json($response, 200);
+    }
+
+    public function get_sub_categories_level5_ios(Request $request)
+    {
+        if (!$request->header('uniqueid')) {
+            $response = APIHelpers::createApiResponse(true , 406 , 'unique id required header' , 'unique id required header'  , null , $request->lang);
+            return response()->json($response , 406);
+        }
+        $validator = Validator::make($request->all(), [
+            'category_id' => 'required'
+        ]);
+        if ($validator->fails() && !isset($request->sub_category_level2_id) && !isset($request->sub_category_level1_id)) {
+            $response = APIHelpers::createApiResponse(true, 406, 'بعض الحقول مفقودة', 'بعض الحقول مفقودة', null, $request->lang);
+            return response()->json($response, 406);
+        }
+        $visitor = Visitor::where('unique_id', $request->header('uniqueid'))->select('city_id', 'area_id', 'unique_id')->first();
+        $lang = $request->lang;
+        Session::put('api_lang', $lang);
+        if (!$visitor) {
+            $response = APIHelpers::createApiResponse(true , 406 , 'there is no such visitor' , 'there is no such visitor'  , null , $request->lang);
+            return response()->json($response , 406);
+        }
+        
+        if ($request->sub_category_level1_id == 0) {
+            $subCategories = SubCategory::where('deleted', 0)->where('category_id', $request->category_id)->pluck('id')->toArray();
+            $subCategoriesTwo = SubTwoCategory::where('deleted', 0)->whereIn('sub_category_id', $subCategories)->pluck('id')->toArray();
+        } else {
+            $subCategoriesTwo = SubTwoCategory::where('deleted', 0)->where('sub_category_id', $request->sub_category_level1_id)->pluck('id')->toArray();
+        }
+        if ($request->sub_category_level2_id == 0) {
+            $subCategoriesThree = SubThreeCategory::where('deleted', 0)->whereIn('sub_category_id', $subCategoriesTwo)->pluck('id')->toArray();
+        } else {
+            $subCategoriesThree = SubThreeCategory::where('deleted', 0)->where('sub_category_id', $request->sub_category_level2_id)->pluck('id')->toArray();
+        }
+        if ($request->sub_category_level3_id == 0) {
+            $subCategoriesFour = SubFourCategory::where('deleted', 0)->whereIn('sub_category_id', $subCategoriesThree)->pluck('id')->toArray();
+        } else {
+            $subCategoriesFour = SubFourCategory::where('deleted', 0)->where('sub_category_id', $request->sub_category_level3_id)->pluck('id')->toArray();
+        }
+        if ($request->sub_category_id != 0) {
+            $data['sub_categories'] = $this->getCatsSubCats('\App\SubFiveCategory', $lang, false, $request->sub_category_id, true);
+        
+            $data['sub_category_level4'] = SubFourCategory::where('deleted', 0)->where('sub_category_id', $request->sub_category_id)->select('id', 'image', 'title_' . $lang . ' as title')->first();
+            
+            $data['category'] = Category::where('id', $request->category_id)->select('id', 'title_' . $lang . ' as title')->first();
+        } else {
+            $data['sub_categories'] = $this->getCatsSubCats('\App\SubFiveCategory', $lang, false, 0, false, $subCategoriesFour);
+            $data['sub_category_level3'] = (object)[
+                "id" => 0,
+                "title" => "All",
+                "sub_category_id" => (int)$request->sub_category_level2_id
+            ];
+            
+            $data['category'] = Category::where('id', $request->category_id)->select('id', 'title_' . $lang . ' as title')->first();
+        }
+
+        $products = Product::where('status', 1)->where('publish', 'Y')->where('deleted', 0)->where('reviewed', 1)->with('Publisher');
+        if ($request->sub_category_id != 0) {
+            $products = $products->where('sub_category_four_id', $request->sub_category_id);
+        }
+        if ($visitor->city_id != 0) {
+            $products = $products->where('city_id', $visitor->city_id);
+        }
+        if ($visitor->area_id != 0) {
+            $products = $products->where('area_id', $visitor->area_id);
+        }
+        if ($request->sub_category_level3_id != 0) {
+            $products = $products->where('sub_category_three_id', $request->sub_category_level3_id);
+        }
+        if ($request->sub_category_level2_id != 0) {
+            $products = $products->where('sub_category_two_id', $request->sub_category_level2_id);
+        }
+        if ($request->sub_category_level1_id != 0) {
+            $products = $products->where('sub_category_id', $request->sub_category_level1_id);
+        }
+        $products = $products->select('id', 'title', 'main_image as image', 'created_at', 'user_id','city_id','area_id', 'price', 'views')
+            ->orderBy('created_at', 'desc')->simplePaginate(12);
+        $data['show_views'] = Setting::where('id', 1)->select('show_views')->first()['show_views'];
+        $user = auth()->user();
+        $i = 0;
+        $products->getCollection()->transform(function ($value) use ($i, $lang, $user, $visitor) {
+            ++$i;
+            
+            $value->show_price = true;
+            if ($value->price == 0) {
+                $value->show_price = false;
+            }
+            $value->address = $value->City->title_ar;
+            if ($lang == 'en') {
+                $value->address = $value->City->title_en;
+            }
+            $value->price = number_format((float)$value->price, 3, '.', '');
+
+            if ($user) {
+                $favorite = Favorite::where('user_id', $user->id)->where('product_id', $value->id)->first();
+                if ($favorite) {
+                    $value->favorite = true;
+                } else {
+                    $value->favorite = false;
+                }
+
+                $conversation = Participant::where('ad_product_id', $value->id)->where('user_id', $user->id)->first();
+                if ($conversation == null) {
+                    $value->conversation_id = 0;
+                } else {
+                    $value->conversation_id = $conversation->conversation_id;
+                }
+            }else {
+                $value->favorite = false;
+                $value->conversation_id = 0;
+            }
+            $value->time = $value->created_at->diffForHumans(['long' => true, 'parts' => 2, 'join' => ' و ']);
+            
+            // Your code here
+            return $value;
+        });
+
+        $products = $products->toArray();
+        
+        $new_ad = [];
+
+        for ($i = 0; $i < count($products['data']); $i++) {
+            array_push($new_ad , $products['data'][$i]);
+            if ((($i+1) % 4) == 0) {
+                $ad = Ad::where('city_id', $visitor->city_id)->select('id', 'image', 'type', 'content')->where('place', 1)->inRandomOrder()->first();
+                if (!$ad) {
+                    $ad = Ad::select('id', 'image', 'type', 'content')->where('place', 1)->inRandomOrder()->first();
+                }
+                if($ad){
+                    $ad->id = 0;
+                    $ad->title = $ad->content;
+                    $ad->user_id = 0;
+                    $ad->created_at = Carbon::now();
+                    $ad->city_id = 0;
+                    $ad->area_id = 0;
+                    $ad->price = '0';
+                    $ad->address = $ad->type;
+                    $ad->favorite =false;
+                    $ad->conversation_id =0;
+                    $ad->time ="";
+                    array_push($new_ad, $ad);
+                    
+                }
+            }
+        }
+        $products['data'] = $new_ad;
+        
+        $data['products'] = $products;
+
+
+        $response = APIHelpers::createApiResponse(false, 200, '', '', $data, $request->lang);
+        return response()->json($response, 200);
+    }
+
+    public function get_sub_categories_level5_android(Request $request)
+    {
+        if (!$request->header('uniqueid')) {
+            $response = APIHelpers::createApiResponse(true , 406 , 'unique id required header' , 'unique id required header'  , null , $request->lang);
+            return response()->json($response , 406);
+        }
+        $validator = Validator::make($request->all(), [
+            'category_id' => 'required'
+        ]);
+        if ($validator->fails() && !isset($request->sub_category_level2_id) && !isset($request->sub_category_level1_id)) {
+            $response = APIHelpers::createApiResponse(true, 406, 'بعض الحقول مفقودة', 'بعض الحقول مفقودة', null, $request->lang);
+            return response()->json($response, 406);
+        }
+        $visitor = Visitor::where('unique_id', $request->header('uniqueid'))->select('city_id', 'area_id', 'unique_id')->first();
+        $lang = $request->lang;
+        Session::put('api_lang', $lang);
+        if (!$visitor) {
+            $response = APIHelpers::createApiResponse(true , 406 , 'there is no such visitor' , 'there is no such visitor'  , null , $request->lang);
+            return response()->json($response , 406);
+        }
+        
+        if ($request->sub_category_level1_id == 0) {
+            $subCategories = SubCategory::where('deleted', 0)->where('category_id', $request->category_id)->pluck('id')->toArray();
+            $subCategoriesTwo = SubTwoCategory::where('deleted', 0)->whereIn('sub_category_id', $subCategories)->pluck('id')->toArray();
+        } else {
+            $subCategoriesTwo = SubTwoCategory::where('deleted', 0)->where('sub_category_id', $request->sub_category_level1_id)->pluck('id')->toArray();
+        }
+        if ($request->sub_category_level2_id == 0) {
+            $subCategoriesThree = SubThreeCategory::where('deleted', 0)->whereIn('sub_category_id', $subCategoriesTwo)->pluck('id')->toArray();
+        } else {
+            $subCategoriesThree = SubThreeCategory::where('deleted', 0)->where('sub_category_id', $request->sub_category_level2_id)->pluck('id')->toArray();
+        }
+        if ($request->sub_category_level3_id == 0) {
+            $subCategoriesFour = SubFourCategory::where('deleted', 0)->whereIn('sub_category_id', $subCategoriesThree)->pluck('id')->toArray();
+        } else {
+            $subCategoriesFour = SubFourCategory::where('deleted', 0)->where('sub_category_id', $request->sub_category_level3_id)->pluck('id')->toArray();
+        }
+        if ($request->sub_category_id != 0) {
+            $data['sub_categories'] = $this->getCatsSubCats('\App\SubFiveCategory', $lang, false, $request->sub_category_id, true);
+        
+            $data['sub_category_level4'] = SubFourCategory::where('deleted', 0)->where('sub_category_id', $request->sub_category_id)->select('id', 'image', 'title_' . $lang . ' as title')->first();
+            
+            $data['category'] = Category::where('id', $request->category_id)->select('id', 'title_' . $lang . ' as title')->first();
+        } else {
+            $data['sub_categories'] = $this->getCatsSubCats('\App\SubFiveCategory', $lang, false, 0, false, $subCategoriesFour);
+            $data['sub_category_level3'] = (object)[
+                "id" => 0,
+                "title" => "All",
+                "sub_category_id" => (int)$request->sub_category_level2_id
+            ];
+            
+            $data['category'] = Category::where('id', $request->category_id)->select('id', 'title_' . $lang . ' as title')->first();
+        }
+
+        $products = Product::where('status', 1)->where('publish', 'Y')->where('deleted', 0)->where('reviewed', 1)->with('Publisher');
+        if ($request->sub_category_id != 0) {
+            $products = $products->where('sub_category_four_id', $request->sub_category_id);
+        }
+        if ($visitor->city_id != 0) {
+            $products = $products->where('city_id', $visitor->city_id);
+        }
+        if ($visitor->area_id != 0) {
+            $products = $products->where('area_id', $visitor->area_id);
+        }
+        if ($request->sub_category_level3_id != 0) {
+            $products = $products->where('sub_category_three_id', $request->sub_category_level3_id);
+        }
+        if ($request->sub_category_level2_id != 0) {
+            $products = $products->where('sub_category_two_id', $request->sub_category_level2_id);
+        }
+        if ($request->sub_category_level1_id != 0) {
+            $products = $products->where('sub_category_id', $request->sub_category_level1_id);
+        }
+        $products = $products->select('id', 'title', 'main_image as image', 'created_at', 'user_id','city_id','area_id', 'price', 'views')
+            ->orderBy('created_at', 'desc')->simplePaginate(12);
+        $data['show_views'] = Setting::where('id', 1)->select('show_views')->first()['show_views'];
+        $user = auth()->user();
+        
+        $i = 0;
+        $products->getCollection()->transform(function ($value) use ($i, $lang, $user, $visitor) {
+            ++$i;
+            
+            $value->show_price = true;
+            if ($value->price == 0) {
+                $value->show_price = false;
+            }
+            $value->address = $value->City->title_ar;
+            if ($lang == 'en') {
+                $value->address = $value->City->title_en;
+            }
+            $value->price = number_format((float)$value->price, 3, '.', '');
+
+            if ($user) {
+                $favorite = Favorite::where('user_id', $user->id)->where('product_id', $value->id)->first();
+                if ($favorite) {
+                    $value->favorite = true;
+                } else {
+                    $value->favorite = false;
+                }
+
+                $conversation = Participant::where('ad_product_id', $value->id)->where('user_id', $user->id)->first();
+                if ($conversation == null) {
+                    $value->conversation_id = 0;
+                } else {
+                    $value->conversation_id = $conversation->conversation_id;
+                }
+            }else {
+                $value->favorite = false;
+                $value->conversation_id = 0;
+            }
+            $value->time = $value->created_at->diffForHumans(['long' => true, 'parts' => 2, 'join' => ' و ']);
+            
+            // Your code here
+            return $value;
+        });
+
+        $products = $products->toArray();
+        
+        $new_ad = [];
+        $prods = [];
+
+        for ($i = 0; $i < count($products['data']); $i++) {
+            array_push($prods , $products['data'][$i]);
+            if ((($i+1) % 4) == 0) {
+                $ad = Ad::where('city_id', $visitor->city_id)->select('id', 'image', 'type', 'content')->where('place', 1)->inRandomOrder()->first();
+                if (!$ad) {
+                    $ad = Ad::select('id', 'image', 'type', 'content')->where('place', 1)->inRandomOrder()->first();
+                }
+                if($ad){
+                    $ad->id = 0;
+                    $ad->title = $ad->content;
+                    $ad->user_id = 0;
+                    $ad->created_at = Carbon::now();
+                    $ad->city_id = 0;
+                    $ad->area_id = 0;
+                    $ad->price = '0';
+                    $ad->address = $ad->type;
+                    $ad->favorite =false;
+                    $ad->conversation_id =0;
+                    $ad->time ="";
+                    $ad->products = $prods;
+                    array_push($new_ad, $ad);
+                    $prods = [];
+                }
+            }
+        }
+        $products['data'] = $new_ad;
         $data['products'] = $products;
 
 

@@ -76,7 +76,7 @@ class AuthController extends Controller
             'account_type' => 'required|in:personal,commercial',
             'name' => 'required',
             'phone' => 'required',
-            "email" => 'required',
+            // "email" => 'required',
             "password" => 'required',
             "fcm_token" => 'required',
             "type" => "required", // 1 -> iphone , 2 -> android
@@ -95,12 +95,15 @@ class AuthController extends Controller
             return response()->json($response , 409);
         }
 
-        // check if email registered before
-        $prev_user_email = User::where('email', $request->email)->first();
-        if($prev_user_email){
-            $response = APIHelpers::createApiResponse(true , 409 ,  'البريد الإلكتروني موجود من قبل', '' , null, $request->lang );
-            return response()->json($response , 409);
+        if ($request->email) {
+            // check if email registered before
+            $prev_user_email = User::where('email', $request->email)->first();
+            if($prev_user_email){
+                $response = APIHelpers::createApiResponse(true , 409 ,  'البريد الإلكتروني موجود من قبل', '' , null, $request->lang );
+                return response()->json($response , 409);
+            }
         }
+        
 
         $setting = Setting::find(1);
         $free_balance = $setting['free_balance'];
@@ -114,7 +117,10 @@ class AuthController extends Controller
 
         $user->name = $request->name;
         $user->phone = $request->phone;
-        $user->email = $request->email;
+        if ($request->email) {
+            $user->email = $request->email;
+        }
+        
         $user->password = Hash::make($request->password);
         $user->fcm_token = $request->fcm_token;
         $user->free_balance = $user->free_balance + $free_balance;
