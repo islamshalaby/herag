@@ -96,14 +96,10 @@ class UserController extends AdminController{
     // send notifications
     public function SendNotifications(Request $request){
         $user = User::find($request->id);
-        $visitor = Visitor::where('user_id', $user->id)->where('fcm_token' ,'!=' , null)->latest('updated_at')->select('id', 'fcm_token')->first();
+        $visitor = Visitor::where('user_id', $user->id)->where('fcm_token' ,'!=' , null)->select('id', 'fcm_token', 'user_id')->get();
         
-        if (!$visitor) {
+        if (count($visitor) > 0) {
             return redirect('admin-panel/users/details/'.$request->id)->with('error', 'There is no fcm token for this user');
-        }
-        $fcm_token = $visitor->fcm_token;
-        if(!$fcm_token){
-            return redirect('admin-panel/users/details/'.$request->id)->with('error', 'Empty Fcm Token');
         }
 
         if($request->file('image')){
@@ -122,15 +118,19 @@ class UserController extends AdminController{
         $insert_notification->title = $request->title;
         $insert_notification->body = $request->body;
         $insert_notification->save();
-
-        $user_notification = new UserNotification();
-        $user_notification->notification_id = $insert_notification->id;
-        $user_notification->user_id = $request->id;
-        $user_notification->save();
+        $fcm_tokens = [];
+        for($i =0; $i < count($visitor); $i++){
+            $fcm_tokens[$i] = $visitor[$i]['fcm_token'];
+            $user_notification = new UserNotification();
+            $user_notification->user_id = $request->id;
+            $user_notification->notification_id = $insert_notification->id;
+            $user_notification->visitor_id = $visitor[$i]['id'];
+            $user_notification->save();
+        }
 
 		$the_image = "https://res.cloudinary.com/duwmvqjpo/image/upload/w_100,q_100/v1581928924/".$image_new_name;
 
-        $notification = APIHelpers::send_notification($request->title , $request->body , $the_image , null , [$fcm_token]);
+        $notification = APIHelpers::send_notification($request->title , $request->body , $the_image , null , $fcm_tokens);
         $json_notification = json_decode($notification);
         
         if($json_notification->success){

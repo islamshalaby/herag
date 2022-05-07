@@ -48,7 +48,7 @@ class NotificationController extends AdminController{
                 });
             });
         }
-        $users = $users->where('fcm_token' ,'!=' , null)->get();
+        $users = $users->where('fcm_token' ,'!=' , null)->where('user_id' ,'!=' , null)->get();
         if (count($users) == 0) {
             session()->flash('danger', trans('messages.no_users_to_send'));
             return redirect()->back();

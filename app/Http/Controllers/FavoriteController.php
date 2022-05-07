@@ -27,13 +27,16 @@ class FavoriteController extends Controller
             $response = APIHelpers::createApiResponse(true , 406 ,  'تم حظر حسابك', 'تم حظر حسابك' , null, $request->lang );
             return response()->json($response , 406);
         }
+
         $validator = Validator::make($request->all() , [
             'product_id' => 'required',
         ]);
+
         if($validator->fails()) {
             $response = APIHelpers::createApiResponse(true , 406 ,  'بعض الحقول مفقودة', 'بعض الحقول مفقودة' , null, $request->lang );
             return response()->json($response , 406);
         }
+
         $favorite = Favorite::where('product_id' , $request->product_id)->where('user_id' , $user->id)->first();
         if($favorite){
             $response = APIHelpers::createApiResponse(true , 406 ,  'تم إضافه هذا المنتج للمفضله من قبل', 'تم إضافه هذا المنتج للمفضله من قبل' , null, $request->lang );
@@ -44,22 +47,24 @@ class FavoriteController extends Controller
             $favorite->product_id = $request->product_id;
             $favorite->save();
             $product = Product::where("id", $request->product_id)->select('id', 'user_id', 'title')->first();
-            $lastToken = Visitor::where('user_id', $product->user_id)->where('fcm_token' ,'!=' , null)->latest('updated_at')->select('id', 'fcm_token')->first();
+            $lastToken = Visitor::where('user_id', $product->user_id)->where('fcm_token' ,'!=' , null)->select('id', 'fcm_token')->get();
             
             $title = "الإعلان";
             $body = $user->name . " has added your ad " . $product->title . " to favorite list";
             if ($request->lang == 'ar') {
                 $body = $user->name . " قام بإضافة إعلانك " . $product->title . " إلى المفضلة";
             }
-            
-            if ($lastToken) {
+
+            if (count($lastToken) > 0) {
                 $notification = Notification::create(['title' => $title, 'body' => $body, 'ad_id' => $request->product_id]);
-                UserNotification::create([
-                    'user_id' => $user->id,
-                    'notification_id' => $notification->id,
-                    'visitor_id' => $lastToken->id
-                    ]);
-                $notificationss = APIHelpers::send_notification($title , $body , "", (object)['ad_id' => $request->product_id] , [$lastToken->fcm_token]);
+                for ($i = 0; $i < count($lastToken); $i ++) {
+                    UserNotification::create([
+                            'user_id' => $user->id,
+                            'notification_id' => $notification->id,
+                            'visitor_id' => $lastToken[$i]->id
+                        ]);
+                    $notificationss = APIHelpers::send_notification($title , $body , "", (object)['ad_id' => $request->product_id] , [$lastToken[$i]->fcm_token]);
+                }
             }
             
             

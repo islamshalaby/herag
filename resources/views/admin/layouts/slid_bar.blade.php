@@ -51,8 +51,8 @@
                     </li>
                 @endif
                 @php
-                    $reports_count =  \App\Product_report::where('status','new')->get()->count();
-                    $comments_count =  \App\Product_comment::where('status','new')->get()->count();
+                    $reports_count =  \App\Product_report::has('Product')->where('status','new')->get()->count();
+                    $comments_count =  \App\Product_comment::has('Product')->where('status','new')->get()->count();
                     $total_count = $reports_count + $comments_count ;
                 @endphp
 

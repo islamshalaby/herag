@@ -375,10 +375,27 @@ class UserController extends Controller
         $notifications_ids = UserNotification::where('user_id', $user_id)->where('visitor_id', $visitor->id)->orderBy('id', 'desc')->select('notification_id')->get();
         $notifications = [];
         for ($i = 0; $i < count($notifications_ids); $i++) {
-            $notifications[$i] = Notification::select('id', 'title', 'body', 'image', 'ad_id', 'created_at')->find($notifications_ids[$i]['notification_id']);
+            $notifications[$i] = Notification::select('id', 'title', 'body', 'image', 'ad_id', 'created_at', 'seen')->find($notifications_ids[$i]['notification_id']);
+            $notifications[$i]->update(['seen' => 1]);
         }
         $data['notifications'] = $notifications;
         $response = APIHelpers::createApiResponse(false, 200, '', '', $data['notifications'], $request->lang);
+        return response()->json($response, 200);
+    }
+
+    // notification count
+    public function notification_count(Request $request) {
+        $user = auth()->user();
+        if (!$request->header('uniqueid')) {
+            $response = APIHelpers::createApiResponse(true , 406 ,  'uniqueid is required header', 'uniqueid is required header' , null, $request->lang );
+            return response()->json($response , 406);
+        }
+        $user_id = $user->id;
+        $visitor = Visitor::where('unique_id', $request->header('uniqueid'))->where('user_id', $user_id)->select('id')->first();
+        $notifications_ids = UserNotification::where('user_id', $user_id)->where('visitor_id', $visitor->id)->pluck('notification_id')->toArray();
+        $data['count'] = Notification::whereIn('id', $notifications_ids)->where('seen', 0)->count();
+
+        $response = APIHelpers::createApiResponse(false, 200, '', '', $data, $request->lang);
         return response()->json($response, 200);
     }
 

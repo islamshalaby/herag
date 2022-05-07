@@ -493,7 +493,7 @@ class ProductController extends AdminController
 
     // show all comments reporst
     public function showAllCommentsReports() {
-        $data = CommentReport::orderBy('id', 'desc')->get();
+        $data = CommentReport::has('product')->orderBy('id', 'desc')->get();
 
         return view('admin.products.all_comment_reports',compact('data'));
     }
@@ -528,7 +528,7 @@ class ProductController extends AdminController
     // product comments page functions .............
     public function comments()
     {
-        $data = Product_comment::where('status','new')->orderBy('id', 'desc')->get();
+        $data = Product_comment::has('Product')->where('status','new')->orderBy('id', 'desc')->get();
         return view('admin.products.products_comments',compact('data'));
     }
     

@@ -38,11 +38,11 @@ class HomeController extends Controller
     // get cats - sub cats with next level
     public function getCatsSubCats($model, $lang, $show=true, $cat_id=0, $city_id=0, $all=false, $whereIn=[]) {
         $categories = $model::where('deleted', 0);
-        if ($city_id != 0) {
-            $categories = $categories->whereHas('Products', function($q) use ($city_id) {
-                $q->where('city_id', $city_id);
-            });
-        }
+        // if ($city_id != 0) {
+        //     $categories = $categories->whereHas('Products', function($q) use ($city_id) {
+        //         $q->where('city_id', $city_id);
+        //     });
+        // }
         if ($model == '\App\SubCategory' && $cat_id != 0) {
             $categories = $categories->where('category_id', $cat_id);
         }elseif ($model != '\App\Category' && $cat_id != 0) {
@@ -155,6 +155,7 @@ class HomeController extends Controller
             }
         }
         $data['categories'] = $categories;
+        
         if($visitor->city_id == 0){
             $products = Product::where('status', 1)
                 ->with('Publisher')
@@ -482,8 +483,9 @@ class HomeController extends Controller
         
         $new_ad = [];
         $prods = [];
-
+//dd($products['data']);
         for ($i = 0; $i < count($products['data']); $i++) {
+            
             array_push($prods , $products['data'][$i]);
             if ((($i+1) % 4) == 0) {
                 $ad = Ad::where('city_id', $visitor->city_id)->select('id', 'image', 'type', 'content')->where('place', 1)->inRandomOrder()->first();
@@ -504,10 +506,38 @@ class HomeController extends Controller
                     $ad->time ="";
                     $ad->products = $prods;
                     array_push($new_ad, $ad);
+                    
                     $prods = [];
                 }
+                
+            }else {
+                if (count($products['data']) == $i + 1) {
+                    $ad = Ad::where('city_id', $visitor->city_id)->select('id', 'image', 'type', 'content')->where('place', 1)->inRandomOrder()->first();
+                    if (!$ad) {
+                        $ad = Ad::select('id', 'image', 'type', 'content')->where('place', 1)->inRandomOrder()->first();
+                    }
+                    if($ad){
+                        $ad->id = 0;
+                        $ad->title = $ad->content;
+                        $ad->user_id = 0;
+                        $ad->created_at = Carbon::now();
+                        $ad->city_id = 0;
+                        $ad->area_id = 0;
+                        $ad->price = '0';
+                        $ad->address = $ad->type;
+                        $ad->favorite =false;
+                        $ad->conversation_id =0;
+                        $ad->time ="";
+                        $ad->products = $prods;
+                        array_push($new_ad, $ad);
+                        
+                        $prods = [];
+                    }
+                }
             }
+            
         }
+        
         $products['data'] = $new_ad;
         
         $data['products'] = $products;

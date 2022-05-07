@@ -328,4 +328,14 @@ class ChatController extends Controller
         $response = APIHelpers::createApiResponse(false, 200, '', '', $data, $request->lang);
         return response()->json($response, 200);
     }
+    
+    // chat count
+    public function chat_count(Request $request) {
+        $user_id = auth()->user()->id;
+        $conversationIds = Participant::where('user_id', $user_id)->pluck('conversation_id')->toArray();
+        $data['count'] = Message::whereIn('conversation_id', $conversationIds)->where('user_id', '!=', $user_id)->where('is_read', '0')->count();
+        
+        $response = APIHelpers::createApiResponse(false, 200, '', '', $data, $request->lang);
+        return response()->json($response, 200);
+    }
 }

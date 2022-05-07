@@ -9,7 +9,7 @@ class Product_comment extends Model
     protected $fillable = ['comment','user_id', 'product_id','status'];
 
     public function Product() {
-        return $this->belongsTo('App\Product', 'product_id');
+        return $this->belongsTo('App\Product', 'product_id')->where('deleted', 0);
     }
 
     public function User() {

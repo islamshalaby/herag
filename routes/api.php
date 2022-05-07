@@ -133,6 +133,11 @@ use Illuminate\Http\Request;
     
     // products last level
     Route::get('/products/last-level/{sub_category_id}/{lang}/{v}' , 'CategoryController@getproducts')->middleware('checkguest');
+    // products last level for ios
+    Route::get('/products/last-level-ios/{sub_category_id}/{lang}/{v}' , 'CategoryController@getproductsIos')->middleware('checkguest');
+    // products last level for android
+    Route::get('/products/last-level-android/{sub_category_id}/{lang}/{v}' , 'CategoryController@getproductsAndroid')->middleware('checkguest');
+    
 
     // get home data
     Route::get('/home/{lang}/{v}' , 'HomeController@gethome')->middleware('checkguest');
@@ -218,6 +223,8 @@ use Illuminate\Http\Request;
 
     //notifications
     Route::get('/sellect_notofications/{lang}/{v}' , 'UserController@notifications');
+    Route::get('/notification_count/{lang}/{v}' , 'UserController@notification_count');
+    
 
     //favorite
     Route::get('/favorites/{lang}/{v}' , 'FavoriteController@getfavorites');
@@ -265,10 +272,12 @@ Route::get('/ad/areas/{city_id}/{lang}/{v}' , 'ProductController@areas');
     Route::get('/payments_date/{lang}/{v}' , 'UserController@payments_date');
 
     //chat api
+    Route::get('/chat/chat_count/{lang}/{v}' , 'ChatController@chat_count');
     Route::get('/chat/test_exists_conversation/{id}/{lang}/{v}' , 'ChatController@test_exists_conversation');
     Route::post('/chat/send_message/{lang}/{v}' , 'ChatController@store');
     Route::get('/chat/my_messages/{lang}/{v}' , 'ChatController@my_messages');
     Route::get('/chat/get_ad_message/{id}/{conversation_id}/{lang}/{v}' , 'ChatController@get_ad_message');
+    
     Route::get('/chat/search_conversation/{search}/{lang}/{v}' , 'ChatController@search_conversation');
     Route::get('/chat/make_read/{message_id}/{lang}/{v}' , 'ChatController@make_read');
 //    133921699
